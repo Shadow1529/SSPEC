@@ -1,6 +1,6 @@
 /**
  * SSPEC OPERATIONAL ENVIRONMENT - MAIN TERMINAL CONTROLLER
- * Version: 3.5.0-RELEASE
+ * Version: 3.6.0-RELEASE
  * Kernel: Linux sspec-node 5.15.0-x86_64
  */
 
@@ -65,6 +65,8 @@ let isInstalled = false;
 let installStep = 0;
 let isAdmin = false;
 let isHacking = false;
+let isPipHacking = false;
+let pipInterval = null;
 let hackInterval = null;
 let webLogInterval = null;
 let commandHistory = [];
@@ -150,6 +152,58 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 function formatTimestamp() {
     const now = new Date();
     return now.toTimeString().split(' ')[0];
+}
+
+// ==========================================
+// INFINITE PIP HACKER STREAM GENERATOR
+// ==========================================
+const pipPackages = [
+    "scapy==2.5.0", "impacket==0.10.0", "pwntools==4.11.0", "metasploit-framework", 
+    "cryptography==41.0.3", "requests-html", "paramiko==3.3.0", "pycryptodome", 
+    "sqlmap-engine", "nmap-python-wrapper", "wifi-cracker-core", "exploit-db-sync"
+];
+
+function generatePipHackerLog() {
+    const randomPkg = pipPackages[Math.floor(Math.random() * pipPackages.length)];
+    const size = (Math.random() * 12 + 1.2).toFixed(1);
+    const speed = Math.floor(Math.random() * 8000 + 1200);
+
+    const logs = [
+        `Collecting ${randomPkg}...`,
+        `  Downloading ${randomPkg} (${size} MB) [================================] 100% ${speed} kB/s`,
+        `  Building wheel for ${randomPkg} (setup.py) ... done`,
+        `  Stored in directory: /root/.cache/pip/wheels/${Math.random().toString(36).substring(2, 10)}`,
+        `[+] Injecting memory payload into 0x7FFF${Math.floor(Math.random()*8999+1000)}...`,
+        `[>] OVERRIDING BACKDOOR AT PORT ${Math.floor(Math.random()*8000+1000)}`,
+        `Installing collected packages: ${randomPkg}`,
+        `Successfully installed ${randomPkg}`,
+        `[>] MEMORY DUMP [0x${Math.floor(Math.random()*100000).toString(16)}]: ${Math.random().toString(36).substring(2, 14)}`,
+        `[+] Extracting shadow hash: $6$rounds=5000$${Math.random().toString(36).substring(2, 12)}...`,
+        `[!] SYSTEM OVERHEAT WARNING: Core ${Math.floor(Math.random()*8)} at ${Math.floor(Math.random()*30+65)}°C`
+    ];
+
+    return logs[Math.floor(Math.random() * logs.length)];
+}
+
+function startPipHackerStream() {
+    if (pipInterval) clearInterval(pipInterval);
+    isPipHacker = true;
+    appendOutput("\n[+] PIP INFINITE PACKAGE & EXPLOIT INJECTION STARTED...");
+    appendOutput("[!] TYPE 'pip install stop' OR PRESS 'CTRL + C' TO ABORT STREAM.\n");
+
+    pipInterval = setInterval(() => {
+        appendOutput(generatePipHackerLog());
+    }, 70);
+}
+
+function stopPipHackerStream() {
+    if (pipInterval) {
+        clearInterval(pipInterval);
+        pipInterval = null;
+    }
+    isPipHacker = false;
+    appendOutput("\n[-] PIP HACKER STREAM TERMINATED SUCCESSFULLY.");
+    appendOutput("Restoring terminal session...\n");
 }
 
 // ==========================================
@@ -372,14 +426,18 @@ function toggleWinMin() {
 // KEYBOARD COMMAND INTERCEPTORS
 // ==========================================
 window.addEventListener('keydown', function(e) {
-    // Intercept CTRL + C during hack mode
-    if (e.ctrlKey && e.key.toLowerCase() === 'c' && isHacking) {
-        clearInterval(hackInterval);
-        isHacking = false;
-        appendOutput("\n[^C] HACK SEQUENCE TERMINATED BY USER.");
-        appendOutput("Returning to active shell...\n");
-        inputField.style.display = 'inline-block';
-        inputField.focus();
+    // Intercept CTRL + C to cancel active streams
+    if (e.ctrlKey && e.key.toLowerCase() === 'c') {
+        if (isHacking) {
+            clearInterval(hackInterval);
+            isHacking = false;
+            appendOutput("\n[^C] HACK SEQUENCE TERMINATED BY USER.");
+            appendOutput("Returning to active shell...\n");
+            inputField.style.display = 'inline-block';
+            inputField.focus();
+        } else if (pipInterval) {
+            stopPipHackerStream();
+        }
     }
 
     // Command History Navigation (Up/Down Arrows)
@@ -468,7 +526,16 @@ inputField.addEventListener('keydown', async function(e) {
             }
         }
 
-        // --- INSTALLED SYSTEM COMMANDS ROUTER ---
+        // --- PIP INSTALL START / STOP COMMANDS ---
+        if (fullCmdLower === 'pip install start') {
+            startPipHackerStream();
+            return;
+        }
+
+        if (fullCmdLower === 'pip install stop') {
+            stopPipHackerStream();
+            return;
+        }
 
         // BANNER COMMAND
         if (fullCmdLower === 'banner' || fullCmdLower === 'sspec banner') {
@@ -527,6 +594,8 @@ inputField.addEventListener('keydown', async function(e) {
                 return;
             }
             appendOutput("================ SSPEC ROOT COMMANDS ================");
+            appendOutput("  pip install start  - Infinite hacker terminal stream");
+            appendOutput("  pip install stop   - Halt infinite hacker stream");
             appendOutput("  banner             - Re-render complete system banner");
             appendOutput("  install terminal   - Launch live desktop sub-terminal overlay");
             appendOutput("  matrix [args]      - Controls: matrix true/false, red/blue/green, fast/slow");
@@ -697,7 +766,6 @@ inputField.addEventListener('keydown', async function(e) {
                 return;
             }
             try {
-                // Safe evaluated expression
                 const result = Function(`'use strict'; return (${expr})`)();
                 appendOutput(`Result: ${result}\n`);
             } catch (err) {
@@ -729,39 +797,23 @@ inputField.addEventListener('keydown', async function(e) {
 
         // STANDARD SHELL COMMAND SUITE
         if (cmd === 'help') {
-            if (isAdmin) {
-                appendOutput("Available commands (ROOT PRIVILEGES ACTIVE):");
-                appendOutput("  banner             - Display full system info ASCII banner");
-                appendOutput("  admin help         - Display root command suite");
-                appendOutput("  install terminal   - Launch desktop GUI window terminal");
-                appendOutput("  matrix <args>      - Toggle/customize background rain");
-                appendOutput("  sspec hack true    - Run stream override diagnostic dump");
-                appendOutput("  system status      - Hardware & memory diagnostics");
-                appendOutput("  portscan local     - Internal system port audit");
-                appendOutput("  traceroute <host>  - Trace network route to target");
-                appendOutput("  theme <color>      - Change shell color theme");
-                appendOutput("  nano <file>        - Interactive text editor");
-                appendOutput("  calc <expr>        - Evaluate math expression");
-                appendOutput("  history            - Display command execution history");
-                appendOutput("  ls / cat / touch   - File management");
-                appendOutput("  clear / exit       - System controls\n");
-            } else {
-                appendOutput("Available commands:");
-                appendOutput("  banner             - Display system banner");
-                appendOutput("  ls                 - List directory files");
-                appendOutput("  cat <file>         - Display file contents");
-                appendOutput("  nano <file>        - Open text editor");
-                appendOutput("  touch <file>       - Create a new file");
-                appendOutput("  rm <file>          - Remove a file");
-                appendOutput("  echo <text> > <f>  - Write text to a file");
-                appendOutput("  whoami             - Print current user level");
-                appendOutput("  nmap <target>      - Port scan host");
-                appendOutput("  calc <expr>        - Quick calculator");
-                appendOutput("  history            - Command history");
-                appendOutput("  uptime / date      - System clock status");
-                appendOutput("  clear              - Clear terminal screen");
-                appendOutput("  exit               - Terminate session\n");
-            }
+            appendOutput("Available commands:");
+            appendOutput("  pip install start  - Infinite hacker terminal stream");
+            appendOutput("  pip install stop   - Halt infinite hacker stream");
+            appendOutput("  banner             - Display system banner");
+            appendOutput("  ls                 - List directory files");
+            appendOutput("  cat <file>         - Display file contents");
+            appendOutput("  nano <file>        - Open text editor");
+            appendOutput("  touch <file>       - Create a new file");
+            appendOutput("  rm <file>          - Remove a file");
+            appendOutput("  echo <text> > <f>  - Write text to a file");
+            appendOutput("  whoami             - Print current user level");
+            appendOutput("  nmap <target>      - Port scan host");
+            appendOutput("  calc <expr>        - Quick calculator");
+            appendOutput("  history            - Command history");
+            appendOutput("  uptime / date      - System clock status");
+            appendOutput("  clear              - Clear terminal screen");
+            appendOutput("  exit               - Terminate session\n");
 
         } else if (cmd === 'ls') {
             appendOutput(Object.keys(virtualFiles).join("  ") + "\n");
