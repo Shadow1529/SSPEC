@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tty1 - sspec-node</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <canvas id="matrix-canvas"></canvas>
+
+    <!-- Main Terminal -->
+    <div id="cli">
+        <pre id="banner"></pre>
+        <div id="output"></div>
+        <div id="input-line">
+            <span class="prompt">guest@sspec-node:~$</span>
+            <input type="text" id="command-input" autofocus autocomplete="off" spellcheck="false">
+        </div>
+    </div>
+
+    <!-- Floating Desktop Window Terminal -->
+    <div id="window-terminal">
+        <div class="window-header" id="win-header">
+            <span class="window-title">SSPEC ROOT SUB TERMINAL v2.4</span>
+            <div class="window-controls">
+                <span class="win-btn min-btn" onclick="toggleWinMin()"></span>
+                <span class="win-btn close-btn" onclick="closeWinTerminal()"></span>
+            </div>
+        </div>
+        <div class="window-body">
+            <div id="win-output"></div>
+            <div class="win-input-line">
+                <span class="prompt" style="color:#ff0055;">root@sspec-window:~#</span>
+                <input type="text" id="win-input" autocomplete="off" spellcheck="false">
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
