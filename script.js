@@ -1,6 +1,6 @@
 /**
  * SSPEC OPERATIONAL ENVIRONMENT - MAIN TERMINAL CONTROLLER
- * Version: 5.0.0-UNABRIDGED
+ * Version: 5.1.0-DEVTERMINAL
  * Kernel: Linux sspec-node 5.15.0-x86_64
  */
 
@@ -53,13 +53,13 @@ const SSPEC_FULL_BANNER = `
 ${SSPEC_ART}
   HOST       : sspec-node-01 (tty1)
   ARCH       : x86_64 GNU/Linux
-  KERNEL     : 5.15.0-SSPEC-V5.0-MASTER
-  BUILD      : 2026.10.08.0500
+  KERNEL     : 5.15.0-SSPEC-V5.1-RELEASE
+  BUILD      : 2026.10.08.0510
   SECURITY   : ENCRYPTION MESH & DEVTOOLS HOOKS ACTIVE
 --------------------------------------------------------------------------------
   Type 'help' for standard user commands.
   Type 'sspec admin run' followed by 'admin help' for root protocols.
-  Type 'sudo rm/f' to stream live browser DevTools console data.
+  Type 'install terminal' to launch sub-terminal streaming real site logs.
   Press 'TAB' for autocompletion | 'CTRL+C' to cancel live streams.
 ================================================================================
 `;
@@ -103,7 +103,7 @@ class SoundEngine {
             oscillator.start();
             oscillator.stop(this.ctx.currentTime + duration);
         } catch (e) {
-            // Audio context hardware fallback
+            // Fallback for hardware context restriction
         }
     }
 
@@ -231,11 +231,11 @@ const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()*&^%<>/\\{}[]';
 let drops = [];
 
 const COMMAND_LIST = [
-    'pip install start', 'pip install stop', 'sudo rm/f', 'sudo rm/f stop', 'sudo rm -rf /', 
-    'admin help', 'help', 'ls', 'cd', 'pwd', 'cat', 'touch', 'mkdir', 'rm', 'echo', 'nano', 
-    'whoami', 'clear', 'exit', 'banner', 'matrix', 'system status', 'portscan local', 
-    'traceroute', 'theme', 'calc', 'history', 'uptime', 'date', 'wireshark', 'tcpdump', 
-    'hydra', 'hashcat', 'top', 'htop', 'ping', 'sound', 'crt', 'install terminal', 'sspec hack true'
+    'pip install start', 'pip install stop', 'admin help', 'help', 'ls', 'cd', 'pwd', 
+    'cat', 'touch', 'mkdir', 'rm', 'echo', 'nano', 'whoami', 'clear', 'exit', 'banner', 
+    'matrix', 'system status', 'portscan local', 'traceroute', 'theme', 'calc', 'history', 
+    'uptime', 'date', 'wireshark', 'tcpdump', 'hydra', 'hashcat', 'top', 'htop', 'ping', 
+    'sound', 'crt', 'install terminal', 'open terminal', 'sspec hack true'
 ];
 
 // ==========================================
@@ -336,47 +336,32 @@ function resolvePath(target) {
 }
 
 // ==========================================
-// 9. DEV CONSOLE & REAL TELEMETRY STREAM
+// 9. REAL WEBSITE & DEV CONSOLE LOG GENERATOR FOR SUB-TERMINAL
 // ==========================================
-function generateRealDevConsoleLog() {
+function generateRealWebConsoleLog() {
+    // Return explicit developer console logs if buffer contains items
     if (devConsoleBuffer.length > 0) {
         return devConsoleBuffer.shift();
     }
 
+    // Capture real active browser runtime telemetry
     const memoryStats = window.performance && window.performance.memory ? 
-        `(JS Heap Used: ${(window.performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(2)}MB / ${(window.performance.memory.jsHeapSizeLimit / 1024 / 1024).toFixed(2)}MB)` : '';
+        `(JS Heap: ${(window.performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(2)}MB / ${(window.performance.memory.jsHeapSizeLimit / 1024 / 1024).toFixed(2)}MB)` : '';
 
     const resources = window.performance ? window.performance.getEntriesByType('resource') : [];
     const randomRes = resources.length > 0 ? resources[Math.floor(Math.random() * resources.length)] : null;
 
-    const realGenerators = [
-        `[REAL-DEVTOOL] DOM Elements Count: ${document.querySelectorAll('*').length} nodes attached`,
-        `[REAL-DEVTOOL] Current Location: ${window.location.href} | Display: ${window.innerWidth}x${window.innerHeight}`,
-        `[REAL-DEVTOOL] UserAgent String: ${navigator.userAgent}`,
-        `[REAL-DEVTOOL] Active Cookies: ${document.cookie ? document.cookie.split(';').length : 0} | LocalStorage Keys: ${localStorage.length}`,
-        `[REAL-DEVTOOL] V8 Memory Status ${memoryStats}`,
-        randomRes ? `[REAL-NETWORK-RES] Resource: ${randomRes.name.substring(0, 55)}... [Duration: ${randomRes.duration.toFixed(1)}ms]` : `[REAL-DEVTOOL] Performance HighRes Time: ${performance.now().toFixed(2)}ms`,
-        `[SUDO-RM-RF] Unlinking /sys/kernel/debug/tracing/... [OK]`,
-        `[SUDO-RM-RF] Wiping filesystem block device /dev/sda${Math.floor(Math.random()*4+1)}... [DELETED]`,
-        `[SUDO-RM-RF] Purging compiled virtual V8 bytecode objects at 0x${Math.floor(Math.random()*1000000).toString(16)}...`,
-        `[SUDO-RM-RF] Removing /var/lib/dpkg/status... [DELETED]`,
-        `[SUDO-RM-RF] Overwriting shadow file hashes with zeroes... [DONE]`
+    const realLogGenerators = [
+        `[REAL-DEVTOOL:DOM] Active Nodes: ${document.querySelectorAll('*').length} elements in document`,
+        `[REAL-DEVTOOL:ENV] URL: ${window.location.href} | Viewport: ${window.innerWidth}x${window.innerHeight}`,
+        `[REAL-DEVTOOL:NAV] UserAgent: ${navigator.userAgent}`,
+        `[REAL-DEVTOOL:STORAGE] Active Cookies: ${document.cookie ? document.cookie.split(';').length : 0} | LocalStorage Keys: ${localStorage.length}`,
+        `[REAL-DEVTOOL:MEM] V8 Engine ${memoryStats}`,
+        randomRes ? `[REAL-NETWORK-RES] Fetch target: ${randomRes.name.substring(0, 55)}... [Duration: ${randomRes.duration.toFixed(1)}ms]` : `[REAL-DEVTOOL:PERF] HighRes Timer: ${performance.now().toFixed(2)}ms`,
+        `[HTTP-SERVER-LOG] [${formatTimestamp()}] 127.0.0.1 - "GET ${window.location.pathname || '/'} HTTP/1.1" 200 - ${Math.floor(Math.random() * 120 + 10)}ms`
     ];
 
-    return realGenerators[Math.floor(Math.random() * realGenerators.length)];
-}
-
-function startSudoRmStream() {
-    if (activeInterval) clearInterval(activeInterval);
-    audio.alert();
-    appendOutput("\n[!] CRITICAL: EXECUTING 'sudo rm -rf /' WITH REAL BROWSER DEVTOOLS MONITORING...");
-    appendOutput("[!] STREAMING LIVE WEBSITE DEV CONSOLE LOGS & RUNTIME TELEMETRY...");
-    appendOutput("[!] PRESS 'CTRL + C' OR TYPE 'sudo rm/f stop' TO ABORT PROCESS.\n");
-
-    activeInterval = setInterval(() => {
-        appendOutput(generateRealDevConsoleLog());
-        audio.streamTick();
-    }, 60);
+    return realLogGenerators[Math.floor(Math.random() * realLogGenerators.length)];
 }
 
 // ==========================================
@@ -471,7 +456,7 @@ async function handleInstaller(input) {
         inputField.style.display = 'none';
 
         const logs = [
-            "Unpacking core packages: sspec-base_5.0.0_x86_64.tar.gz...",
+            "Unpacking core packages: sspec-base_5.1.0_x86_64.tar.gz...",
             "Building kernel targets: vfs.o audio_synth.o crypto_aead.o ui_tty.o",
             "Resolving dynamic library dependencies: libssl.so.3, libc.so.6...",
             "Hooking browser DevTools console event listeners...",
@@ -527,27 +512,14 @@ document.addEventListener('mouseup', () => {
     isDragging = false;
 });
 
-function generateWebLog(filterCode = null) {
-    const ips = ["192.168.1.45", "10.0.0.12", "172.16.254.1", "185.220.101.5", "45.33.32.156", "104.21.55.2"];
-    const methods = ["GET", "POST", "GET", "HEAD", "PUT", "DELETE"];
-    const paths = ["/index.html", "/api/v1/auth", "/style.css", "/script.js", "/admin/login", "/config.json"];
-    const statusCodes = [200, 200, 200, 304, 401, 403, 404, 500];
-
-    const ip = ips[Math.floor(Math.random() * ips.length)];
-    const method = methods[Math.floor(Math.random() * methods.length)];
-    const path = paths[Math.floor(Math.random() * paths.length)];
-    let status = filterCode ? parseInt(filterCode) : statusCodes[Math.floor(Math.random() * statusCodes.length)];
-    
-    return `[${formatTimestamp()}] ${ip} - "${method} ${path} HTTP/1.1" ${status} - ${Math.floor(Math.random() * 1500 + 40)}ms`;
-}
-
-function startWebLogs(filterCode = null) {
+function startWebLogs() {
     if (webLogInterval) clearInterval(webLogInterval);
     webLogInterval = setInterval(() => {
         if (winTerm && winTerm.style.display !== 'none') {
-            appendWinOutput(generateWebLog(filterCode));
+            appendWinOutput(generateRealWebConsoleLog());
+            audio.streamTick();
         }
-    }, 1000);
+    }, 800);
 }
 
 function stopWebLogs() {
@@ -561,8 +533,9 @@ function openWinTerminal() {
     if (!winTerm) return;
     winTerm.style.display = 'flex';
     winOutput.textContent = '';
-    appendWinOutput("=== SSPEC ROOT SUB-TERMINAL OVERLAY [LIVE HTTP STREAM] ===");
-    appendWinOutput("Streaming web server logs... Type 'help' for overlay controls.\n");
+    appendWinOutput("=== SSPEC ROOT SUB-TERMINAL [REAL WEBSITE LOG STREAM] ===");
+    appendWinOutput("[+] Intercepting live browser DevTools console & website telemetry...");
+    appendWinOutput("Type 'help' inside this window for sub-terminal controls.\n");
     startWebLogs();
     if (winInput) winInput.focus();
 }
@@ -768,19 +741,13 @@ inputField.addEventListener('keydown', async function(e) {
             }
         }
 
-        // --- DEV TOOLS CONSOLE & SUDO RM/F STREAMS ---
-        if (fullCmdLower === 'sudo rm/f' || fullCmdLower === 'sudo rm -rf /' || fullCmdLower === 'sudo rm -rf') {
-            startSudoRmStream();
-            return;
-        }
-
-        if (fullCmdLower === 'sudo rm/f stop' || fullCmdLower === 'pip install stop') {
-            stopActiveStream();
-            return;
-        }
-
         if (fullCmdLower === 'pip install start') {
             startPipHackerStream();
+            return;
+        }
+
+        if (fullCmdLower === 'pip install stop') {
+            stopActiveStream();
             return;
         }
 
@@ -815,11 +782,10 @@ inputField.addEventListener('keydown', async function(e) {
             }
             appendOutput("================ SSPEC ROOT COMMANDS ================");
             appendOutput("  admin help         - Display this administrator help menu");
-            appendOutput("  sudo rm/f          - Print live website DevTools console & telemetry stream");
+            appendOutput("  install terminal   - Launch floating sub-terminal streaming real site logs");
             appendOutput("  pip install start  - Stream infinite Python security package downloads");
             appendOutput("  pip install stop   - Stop active streaming process");
             appendOutput("  banner             - Re-render complete system banner");
-            appendOutput("  install terminal   - Launch live desktop sub-terminal overlay");
             appendOutput("  matrix [args]      - Controls: matrix true/false, red/blue/green, fast/slow");
             appendOutput("  sspec hack true    - Run override diagnostic dump & IP lookup");
             appendOutput("  system status      - View live hardware, RAM & system metrics");
@@ -835,6 +801,18 @@ inputField.addEventListener('keydown', async function(e) {
             appendOutput("  crt <on/off>       - Toggle retro CRT scanline effect");
             appendOutput("  exit               - Drop root privileges back to guest");
             appendOutput("=====================================================\n");
+            return;
+        }
+
+        // --- SUB-TERMINAL OVERLAY CONTROL (REAL WEBSITE LOG STREAM) ---
+        if (fullCmdLower === 'install terminal' || fullCmdLower === 'open terminal') {
+            if (!isAdmin) {
+                audio.error();
+                appendOutput("bash: install terminal: Permission denied. Admin required.\n");
+                return;
+            }
+            appendOutput("[+] Launching root sub-terminal window [Real-time Website Log Stream]...\n");
+            openWinTerminal();
             return;
         }
 
@@ -906,18 +884,6 @@ inputField.addEventListener('keydown', async function(e) {
             } else {
                 appendOutput("Usage: matrix <true|false|red|blue|green|fast|slow>\n");
             }
-            return;
-        }
-
-        // --- SUB-TERMINAL OVERLAY CONTROL ---
-        if (fullCmdLower === 'install terminal' || fullCmdLower === 'open terminal') {
-            if (!isAdmin) {
-                audio.error();
-                appendOutput("bash: install terminal: Permission denied. Admin required.\n");
-                return;
-            }
-            appendOutput("[+] Mounting root desktop window terminal overlay...\n");
-            openWinTerminal();
             return;
         }
 
@@ -1244,7 +1210,7 @@ inputField.addEventListener('keydown', async function(e) {
             appendOutput("SSPEC Operational Commands:");
             appendOutput("  sspec admin run    - Elevate to root administrator mode");
             appendOutput("  admin help         - List root administrator tools");
-            appendOutput("  sudo rm/f          - Stream real browser DevTools console data");
+            appendOutput("  install terminal   - Open sub-terminal with live site DevTools stream");
             appendOutput("  pip install start  - Infinite hacker stream");
             appendOutput("  pip install stop   - Stop active streaming stream");
             appendOutput("  ls, cd, pwd        - Navigation tools");
@@ -1286,7 +1252,7 @@ inputField.addEventListener('keydown', async function(e) {
 });
 
 // ==========================================
-// 16. FLOATING SUB-TERMINAL CONTROLLER
+// 16. FLOATING SUB-TERMINAL INPUT CONTROLLER
 // ==========================================
 if (winInput) {
     winInput.addEventListener('keydown', function(e) {
@@ -1302,9 +1268,8 @@ if (winInput) {
 
             if (cmd === 'help' || cmd === 'admin help') {
                 appendWinOutput("Sub-terminal controls:");
-                appendWinOutput("  logs start         - Resume website log stream");
-                appendWinOutput("  logs stop          - Pause website log stream");
-                appendWinOutput("  logs <status_code> - Filter logs by HTTP code (e.g. logs 401)");
+                appendWinOutput("  logs start         - Resume live website DevTools log stream");
+                appendWinOutput("  logs stop          - Pause live stream");
                 appendWinOutput("  clear              - Clear window output");
                 appendWinOutput("  whoami             - Display privilege level");
                 appendWinOutput("  exit               - Close floating window\n");
@@ -1316,11 +1281,8 @@ if (winInput) {
                 } else if (subArg === 'stop') {
                     stopWebLogs();
                     appendWinOutput("[-] Web log stream paused.\n");
-                } else if (!isNaN(parseInt(subArg))) {
-                    startWebLogs(subArg);
-                    appendWinOutput(`[+] Filtering web log stream for status ${subArg}...\n`);
                 } else {
-                    appendWinOutput("Usage: logs <start|stop|status_code>\n");
+                    appendWinOutput("Usage: logs <start|stop>\n");
                 }
             } else if (cmd === 'clear') {
                 winOutput.textContent = '';
