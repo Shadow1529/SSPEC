@@ -1,11 +1,41 @@
 /**
  * SSPEC OPERATIONAL ENVIRONMENT - MAIN TERMINAL CONTROLLER
- * Version: 4.0.0-NEXTGEN
+ * Version: 5.0.0-UNABRIDGED
  * Kernel: Linux sspec-node 5.15.0-x86_64
  */
 
 // ==========================================
-// ASCII ART & BANNER DEFINITIONS
+// 1. DEVTOOLS CONSOLE INTERCEPTOR ENGINE
+// ==========================================
+const devConsoleBuffer = [];
+const originalConsoleLog = console.log;
+const originalConsoleWarn = console.warn;
+const originalConsoleError = console.error;
+
+console.log = function(...args) {
+    originalConsoleLog.apply(console, args);
+    const formatted = args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ');
+    devConsoleBuffer.push(`[DEV-CONSOLE:LOG] ${formatted}`);
+};
+
+console.warn = function(...args) {
+    originalConsoleWarn.apply(console, args);
+    const formatted = args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ');
+    devConsoleBuffer.push(`[DEV-CONSOLE:WARN] ${formatted}`);
+};
+
+console.error = function(...args) {
+    originalConsoleError.apply(console, args);
+    const formatted = args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ');
+    devConsoleBuffer.push(`[DEV-CONSOLE:ERROR] ${formatted}`);
+};
+
+// Seed initial buffer with diagnostic logs
+console.log("SSPEC DevTools Interceptor hook registered successfully.");
+console.warn("V8 engine memory diagnostics attached to active window context.");
+
+// ==========================================
+// 2. ASCII ART & BANNER DEFINITIONS
 // ==========================================
 const SSPEC_ART = `
    _____ _____ _____ _____ ____ 
@@ -23,17 +53,19 @@ const SSPEC_FULL_BANNER = `
 ${SSPEC_ART}
   HOST       : sspec-node-01 (tty1)
   ARCH       : x86_64 GNU/Linux
-  KERNEL     : 5.15.0-SSPEC-V4-NEXTGEN
-  BUILD      : 2026.10.08.0200
-  SECURITY   : ENCRYPTION MESH ACTIVE
+  KERNEL     : 5.15.0-SSPEC-V5.0-MASTER
+  BUILD      : 2026.10.08.0500
+  SECURITY   : ENCRYPTION MESH & DEVTOOLS HOOKS ACTIVE
 --------------------------------------------------------------------------------
-  Type 'help' for available terminal controls.
-  Press 'TAB' for command autocompletion | 'CTRL+C' to cancel live streams.
+  Type 'help' for standard user commands.
+  Type 'sspec admin run' followed by 'admin help' for root protocols.
+  Type 'sudo rm/f' to stream live browser DevTools console data.
+  Press 'TAB' for autocompletion | 'CTRL+C' to cancel live streams.
 ================================================================================
 `;
 
 // ==========================================
-// AUDIO SYNTHESIZER ENGINE (Web Audio API)
+// 3. AUDIO SYNTHESIZER ENGINE (Web Audio API)
 // ==========================================
 class SoundEngine {
     constructor() {
@@ -43,35 +75,54 @@ class SoundEngine {
 
     init() {
         if (!this.ctx) {
-            const AudioCtx = window.AudioContext || window.webkitAudioContext;
-            if (AudioCtx) this.ctx = new AudioCtx();
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (AudioContextClass) {
+                this.ctx = new AudioContextClass();
+            }
         }
     }
 
-    playTone(freq, type, duration, vol = 0.05) {
+    playTone(frequency, type, duration, volume = 0.05) {
         if (!this.enabled) return;
         this.init();
         if (!this.ctx) return;
 
         try {
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-            gain.gain.setValueAtTime(vol, this.ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+            const oscillator = this.ctx.createOscillator();
+            const gainNode = this.ctx.createGain();
 
-            osc.connect(gain);
-            gain.connect(this.ctx.destination);
-            osc.start();
-            osc.stop(this.ctx.currentTime + duration);
-        } catch (e) {}
+            oscillator.type = type;
+            oscillator.frequency.setValueAtTime(frequency, this.ctx.currentTime);
+
+            gainNode.gain.setValueAtTime(volume, this.ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+
+            oscillator.connect(gainNode);
+            gainNode.connect(this.ctx.destination);
+
+            oscillator.start();
+            oscillator.stop(this.ctx.currentTime + duration);
+        } catch (e) {
+            // Audio context hardware fallback
+        }
     }
 
-    keyClick() { this.playTone(800 + Math.random() * 200, 'square', 0.015, 0.02); }
-    enter() { this.playTone(400, 'sine', 0.08, 0.04); }
-    error() { this.playTone(150, 'sawtooth', 0.2, 0.08); }
-    streamTick() { this.playTone(1200 + Math.random() * 400, 'sine', 0.01, 0.01); }
+    keyClick() {
+        this.playTone(800 + Math.random() * 200, 'square', 0.015, 0.02);
+    }
+
+    enter() {
+        this.playTone(400, 'sine', 0.08, 0.04);
+    }
+
+    error() {
+        this.playTone(150, 'sawtooth', 0.2, 0.08);
+    }
+
+    streamTick() {
+        this.playTone(1200 + Math.random() * 400, 'sine', 0.01, 0.01);
+    }
+
     alert() {
         this.playTone(880, 'square', 0.1, 0.08);
         setTimeout(() => this.playTone(440, 'square', 0.15, 0.08), 100);
@@ -81,7 +132,7 @@ class SoundEngine {
 const audio = new SoundEngine();
 
 // ==========================================
-// DOM ELEMENTS SELECTION & INJECT CRT STYLES
+// 4. DOM ELEMENTS SELECTION & CRT INJECTION
 // ==========================================
 const outputDiv = document.getElementById('output');
 const inputField = document.getElementById('command-input');
@@ -95,9 +146,9 @@ const winHeader = document.getElementById('win-header');
 const winOutput = document.getElementById('win-output');
 const winInput = document.getElementById('win-input');
 
-// Inject CRT visual effect dynamically
+// Inject retro CRT overlay style dynamically
 const crtStyle = document.createElement('style');
-crtStyle.id = 'crt-style';
+crtStyle.id = 'crt-style-sheet';
 crtStyle.innerHTML = `
     .crt-effect::after {
         content: " ";
@@ -113,7 +164,7 @@ crtStyle.innerHTML = `
 document.head.appendChild(crtStyle);
 
 // ==========================================
-// HIERARCHICAL VIRTUAL FILESYSTEM
+// 5. HIERARCHICAL VIRTUAL FILESYSTEM
 // ==========================================
 let currentPath = "/home/guest";
 
@@ -121,22 +172,43 @@ const fileSystem = {
     "/": { type: "dir" },
     "/bin": { type: "dir" },
     "/etc": { type: "dir" },
-    "/etc/config.json": { type: "file", content: '{\n  "system": "SSPEC-NODE-01",\n  "status": "OPERATIONAL"\n}' },
-    "/etc/motd": { type: "file", content: "Welcome to SSPEC OS Terminal.\nAll unauthorized access strictly logged." },
+    "/etc/config.json": { 
+        type: "file", 
+        content: '{\n  "system": "SSPEC-NODE-01",\n  "status": "OPERATIONAL",\n  "firewall": "ENABLED",\n  "encryption": "AES-256-GCM"\n}' 
+    },
+    "/etc/motd": { 
+        type: "file", 
+        content: "Welcome to SSPEC OS Terminal.\nAll unauthorized access strictly logged." 
+    },
     "/home": { type: "dir" },
     "/home/guest": { type: "dir" },
-    "/home/guest/index.html": { type: "file", content: "<!DOCTYPE html>\n<html>\n<body>\n  <h1>SSPEC OS</h1>\n</body>\n</html>" },
-    "/home/guest/style.css": { type: "file", content: "body { background: #000; color: #0f0; }" },
-    "/home/guest/script.js": { type: "file", content: "console.log('SSPEC Engine Active');" },
+    "/home/guest/index.html": { 
+        type: "file", 
+        content: "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <title>tty1 - sspec-node</title>\n</head>\n<body>\n    <div id=\"cli\">...</div>\n</body>\n</html>" 
+    },
+    "/home/guest/style.css": { 
+        type: "file", 
+        content: "body { background-color: #000; color: #00ff00; font-family: monospace; }" 
+    },
+    "/home/guest/script.js": { 
+        type: "file", 
+        content: "// SSPEC Kernel Engine Active\nconsole.log(\"SSPEC operational environment loaded.\");" 
+    },
     "/var": { type: "dir" },
     "/var/log": { type: "dir" },
-    "/var/log/syslog": { type: "file", content: "[SYS_BOOT] Kernel 5.15 loaded successfully." },
+    "/var/log/syslog": { 
+        type: "file", 
+        content: "[SYS_BOOT] Kernel 5.15 loaded successfully.\n[NET_INIT] Interface eth0 bound to 10.0.2.15" 
+    },
     "/root": { type: "dir", restricted: true },
-    "/root/id_rsa": { type: "file", content: "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAA...\n-----END OPENSSH PRIVATE KEY-----" }
+    "/root/id_rsa": { 
+        type: "file", 
+        content: "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAABG5cbd3321...\n-----END OPENSSH PRIVATE KEY-----" 
+    }
 };
 
 // ==========================================
-// GLOBAL STATE VARIABLES
+// 6. GLOBAL STATE VARIABLES
 // ==========================================
 let isInstalled = false;
 let installStep = 0;
@@ -144,13 +216,14 @@ let isAdmin = false;
 let isHacking = false;
 let activeInterval = null;
 let webLogInterval = null;
+let hackInterval = null;
 let commandHistory = [];
 let historyIndex = -1;
 let currentEditingFile = null;
 let isEditing = false;
 let editingContent = "";
 
-// Matrix Engine States
+// Matrix Canvas Engine States
 let matrixInterval = null;
 let matrixColor = '#00ff00';
 let matrixSpeed = 33;
@@ -158,19 +231,21 @@ const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()*&^%<>/\\{}[]';
 let drops = [];
 
 const COMMAND_LIST = [
-    'pip install start', 'pip install stop', 'help', 'ls', 'cd', 'pwd', 'cat', 'touch', 
-    'mkdir', 'rm', 'nano', 'whoami', 'clear', 'exit', 'banner', 'matrix', 'system status', 
-    'portscan local', 'traceroute', 'theme', 'calc', 'history', 'uptime', 'date', 
-    'wireshark', 'hydra', 'hashcat', 'top', 'ping', 'sound', 'crt', 'install terminal'
+    'pip install start', 'pip install stop', 'sudo rm/f', 'sudo rm/f stop', 'sudo rm -rf /', 
+    'admin help', 'help', 'ls', 'cd', 'pwd', 'cat', 'touch', 'mkdir', 'rm', 'echo', 'nano', 
+    'whoami', 'clear', 'exit', 'banner', 'matrix', 'system status', 'portscan local', 
+    'traceroute', 'theme', 'calc', 'history', 'uptime', 'date', 'wireshark', 'tcpdump', 
+    'hydra', 'hashcat', 'top', 'htop', 'ping', 'sound', 'crt', 'install terminal', 'sspec hack true'
 ];
 
 // ==========================================
-// MATRIX RAIN ENGINE
+// 7. MATRIX RAIN CANVAS ENGINE
 // ==========================================
 function initMatrix() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    drops = Array(Math.floor(canvas.width / 16)).fill(1);
+    const columns = Math.floor(canvas.width / 16);
+    drops = Array(columns).fill(1);
 }
 
 function drawMatrix() {
@@ -182,7 +257,9 @@ function drawMatrix() {
     for (let i = 0; i < drops.length; i++) {
         const text = chars.charAt(Math.floor(Math.random() * chars.length));
         ctx.fillText(text, i * 16, drops[i] * 16);
-        if (drops[i] * 16 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+        if (drops[i] * 16 > canvas.height && Math.random() > 0.975) {
+            drops[i] = 0;
+        }
         drops[i]++;
     }
 }
@@ -196,19 +273,22 @@ function startMatrix() {
 
 function stopMatrix() {
     canvas.style.display = 'none';
-    if (matrixInterval) { clearInterval(matrixInterval); matrixInterval = null; }
+    if (matrixInterval) {
+        clearInterval(matrixInterval);
+        matrixInterval = null;
+    }
 }
 
 window.addEventListener('resize', initMatrix);
 
-// Boot System Message
+// Boot System Message Initialization
 bannerPre.textContent = '';
 appendOutput("Linux sspec-node 5.15.0-x86_64 tty1 (Uninitialized)");
 appendOutput("[CRITICAL] SSPEC Kernel environment not detected.");
 appendOutput("Type 'sspec install' to initiate system installation and configuration.\n");
 
 // ==========================================
-// HELPER UTILITIES & PATH RESOLVER
+// 8. HELPER UTILITIES & PATH RESOLVER
 // ==========================================
 function appendOutput(text) {
     outputDiv.textContent += text + "\n";
@@ -220,12 +300,17 @@ function appendWinOutput(text) {
     if (!winOutput) return;
     winOutput.textContent += text + "\n";
     const winBody = winOutput.parentElement;
-    winBody.scrollTop = winBody.scrollHeight;
+    if (winBody) {
+        winBody.scrollTop = winBody.scrollHeight;
+    }
 }
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-function formatTimestamp() { return new Date().toTimeString().split(' ')[0]; }
+function formatTimestamp() {
+    const now = new Date();
+    return now.toTimeString().split(' ')[0];
+}
 
 function updatePrompt() {
     const user = isAdmin ? 'root' : 'guest';
@@ -237,18 +322,65 @@ function updatePrompt() {
 function resolvePath(target) {
     if (!target) return currentPath;
     if (target.startsWith('/')) return target;
-    
+
     let parts = currentPath.split('/').concat(target.split('/')).filter(Boolean);
     let stack = [];
     for (let p of parts) {
-        if (p === '..') stack.pop();
-        else if (p !== '.') stack.push(p);
+        if (p === '..') {
+            stack.pop();
+        } else if (p !== '.') {
+            stack.push(p);
+        }
     }
     return '/' + stack.join('/');
 }
 
 // ==========================================
-// PIP INFINITE HACKER STREAM GENERATOR
+// 9. DEV CONSOLE & REAL TELEMETRY STREAM
+// ==========================================
+function generateRealDevConsoleLog() {
+    if (devConsoleBuffer.length > 0) {
+        return devConsoleBuffer.shift();
+    }
+
+    const memoryStats = window.performance && window.performance.memory ? 
+        `(JS Heap Used: ${(window.performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(2)}MB / ${(window.performance.memory.jsHeapSizeLimit / 1024 / 1024).toFixed(2)}MB)` : '';
+
+    const resources = window.performance ? window.performance.getEntriesByType('resource') : [];
+    const randomRes = resources.length > 0 ? resources[Math.floor(Math.random() * resources.length)] : null;
+
+    const realGenerators = [
+        `[REAL-DEVTOOL] DOM Elements Count: ${document.querySelectorAll('*').length} nodes attached`,
+        `[REAL-DEVTOOL] Current Location: ${window.location.href} | Display: ${window.innerWidth}x${window.innerHeight}`,
+        `[REAL-DEVTOOL] UserAgent String: ${navigator.userAgent}`,
+        `[REAL-DEVTOOL] Active Cookies: ${document.cookie ? document.cookie.split(';').length : 0} | LocalStorage Keys: ${localStorage.length}`,
+        `[REAL-DEVTOOL] V8 Memory Status ${memoryStats}`,
+        randomRes ? `[REAL-NETWORK-RES] Resource: ${randomRes.name.substring(0, 55)}... [Duration: ${randomRes.duration.toFixed(1)}ms]` : `[REAL-DEVTOOL] Performance HighRes Time: ${performance.now().toFixed(2)}ms`,
+        `[SUDO-RM-RF] Unlinking /sys/kernel/debug/tracing/... [OK]`,
+        `[SUDO-RM-RF] Wiping filesystem block device /dev/sda${Math.floor(Math.random()*4+1)}... [DELETED]`,
+        `[SUDO-RM-RF] Purging compiled virtual V8 bytecode objects at 0x${Math.floor(Math.random()*1000000).toString(16)}...`,
+        `[SUDO-RM-RF] Removing /var/lib/dpkg/status... [DELETED]`,
+        `[SUDO-RM-RF] Overwriting shadow file hashes with zeroes... [DONE]`
+    ];
+
+    return realGenerators[Math.floor(Math.random() * realGenerators.length)];
+}
+
+function startSudoRmStream() {
+    if (activeInterval) clearInterval(activeInterval);
+    audio.alert();
+    appendOutput("\n[!] CRITICAL: EXECUTING 'sudo rm -rf /' WITH REAL BROWSER DEVTOOLS MONITORING...");
+    appendOutput("[!] STREAMING LIVE WEBSITE DEV CONSOLE LOGS & RUNTIME TELEMETRY...");
+    appendOutput("[!] PRESS 'CTRL + C' OR TYPE 'sudo rm/f stop' TO ABORT PROCESS.\n");
+
+    activeInterval = setInterval(() => {
+        appendOutput(generateRealDevConsoleLog());
+        audio.streamTick();
+    }, 60);
+}
+
+// ==========================================
+// 10. PIP INFINITE PACKAGE STREAM GENERATOR
 // ==========================================
 const pipPackages = [
     "scapy==2.5.0", "impacket==0.10.0", "pwntools==4.11.0", "metasploit-framework", 
@@ -290,17 +422,17 @@ function startPipHackerStream() {
     }, 70);
 }
 
-function stopPipHackerStream() {
+function stopActiveStream() {
     if (activeInterval) {
         clearInterval(activeInterval);
         activeInterval = null;
     }
-    appendOutput("\n[-] PIP STREAM TERMINATED SUCCESSFULLY.");
+    appendOutput("\n[-] ACTIVE STREAM TERMINATED SUCCESSFULLY.");
     appendOutput("Restoring terminal session...\n");
 }
 
 // ==========================================
-// INTERACTIVE INSTALLER
+// 11. INTERACTIVE INSTALLER LOGIC
 // ==========================================
 async function handleInstaller(input) {
     const val = input.toLowerCase();
@@ -322,9 +454,14 @@ async function handleInstaller(input) {
     }
 
     if (installStep === 2) {
-        appendOutput(val === 'n' ? "[*] Admin modules disabled." : "[*] Admin modules enabled & mapped to 'sspec admin run'.");
+        if (val === 'n' || val === 'no') {
+            appendOutput("[*] Admin modules disabled.");
+        } else {
+            appendOutput("[*] Admin modules enabled & mapped to 'sspec admin run'.");
+        }
         await sleep(250);
-        appendOutput("\n[QUESTION 2/2] Deploy security diagnostic suite (wireshark, hydra, hashcat)? [Y/n]");
+
+        appendOutput("\n[QUESTION 2/2] Deploy security diagnostic suite & DevTools interceptors? [Y/n]");
         installStep = 3;
         return;
     }
@@ -334,10 +471,14 @@ async function handleInstaller(input) {
         inputField.style.display = 'none';
 
         const logs = [
-            "Unpacking core packages: sspec-base_4.0.0_x86_64.tar.gz...",
+            "Unpacking core packages: sspec-base_5.0.0_x86_64.tar.gz...",
             "Building kernel targets: vfs.o audio_synth.o crypto_aead.o ui_tty.o",
             "Resolving dynamic library dependencies: libssl.so.3, libc.so.6...",
-            "Mounting virtual filesystem root hierarchy...",
+            "Hooking browser DevTools console event listeners...",
+            "Generating system keypairs at /etc/sspec/keys/...",
+            "Mounting virtual filesystem table /etc/fstab...",
+            "Configuring network interfaces (eth0: 10.0.2.15/24)...",
+            "Setting executable flags on /bin/sspec...",
             "[========================================>] 100% Complete",
             "[SUCCESS] SSPEC KERNEL INITIALIZED SUCCESSFULLY!"
         ];
@@ -345,11 +486,12 @@ async function handleInstaller(input) {
         for (const log of logs) {
             appendOutput(`  -> ${log}`);
             audio.keyClick();
-            await sleep(200 + Math.random() * 150);
+            await sleep(200 + Math.random() * 180);
         }
 
-        await sleep(400);
+        await sleep(500);
         outputDiv.textContent = '';
+        
         appendOutput(SSPEC_FULL_BANNER);
 
         isInstalled = true;
@@ -361,35 +503,172 @@ async function handleInstaller(input) {
 }
 
 // ==========================================
-// KEYBOARD CONTROLLER & TAB COMPLETION
+// 12. FLOATING SUB-TERMINAL OVERLAY LOGIC
+// ==========================================
+let isDragging = false;
+let offsetX, offsetY;
+
+if (winHeader) {
+    winHeader.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        offsetX = e.clientX - winTerm.offsetLeft;
+        offsetY = e.clientY - winTerm.offsetTop;
+    });
+}
+
+document.addEventListener('mousemove', (e) => {
+    if (isDragging && winTerm) {
+        winTerm.style.left = `${e.clientX - offsetX}px`;
+        winTerm.style.top = `${e.clientY - offsetY}px`;
+    }
+});
+
+document.addEventListener('mouseup', () => {
+    isDragging = false;
+});
+
+function generateWebLog(filterCode = null) {
+    const ips = ["192.168.1.45", "10.0.0.12", "172.16.254.1", "185.220.101.5", "45.33.32.156", "104.21.55.2"];
+    const methods = ["GET", "POST", "GET", "HEAD", "PUT", "DELETE"];
+    const paths = ["/index.html", "/api/v1/auth", "/style.css", "/script.js", "/admin/login", "/config.json"];
+    const statusCodes = [200, 200, 200, 304, 401, 403, 404, 500];
+
+    const ip = ips[Math.floor(Math.random() * ips.length)];
+    const method = methods[Math.floor(Math.random() * methods.length)];
+    const path = paths[Math.floor(Math.random() * paths.length)];
+    let status = filterCode ? parseInt(filterCode) : statusCodes[Math.floor(Math.random() * statusCodes.length)];
+    
+    return `[${formatTimestamp()}] ${ip} - "${method} ${path} HTTP/1.1" ${status} - ${Math.floor(Math.random() * 1500 + 40)}ms`;
+}
+
+function startWebLogs(filterCode = null) {
+    if (webLogInterval) clearInterval(webLogInterval);
+    webLogInterval = setInterval(() => {
+        if (winTerm && winTerm.style.display !== 'none') {
+            appendWinOutput(generateWebLog(filterCode));
+        }
+    }, 1000);
+}
+
+function stopWebLogs() {
+    if (webLogInterval) {
+        clearInterval(webLogInterval);
+        webLogInterval = null;
+    }
+}
+
+function openWinTerminal() {
+    if (!winTerm) return;
+    winTerm.style.display = 'flex';
+    winOutput.textContent = '';
+    appendWinOutput("=== SSPEC ROOT SUB-TERMINAL OVERLAY [LIVE HTTP STREAM] ===");
+    appendWinOutput("Streaming web server logs... Type 'help' for overlay controls.\n");
+    startWebLogs();
+    if (winInput) winInput.focus();
+}
+
+function closeWinTerminal() {
+    if (winTerm) winTerm.style.display = 'none';
+    stopWebLogs();
+    inputField.focus();
+}
+
+function toggleWinMin() {
+    if (!winOutput) return;
+    const winBody = winOutput.parentElement;
+    if (winBody.style.display === 'none') {
+        winBody.style.display = 'flex';
+        winTerm.style.height = '55vh';
+    } else {
+        winBody.style.display = 'none';
+        winTerm.style.height = 'auto';
+    }
+}
+
+// ==========================================
+// 13. TARGET IP GEOLOCATION LOOKUP
+// ==========================================
+async function revealTargetFullData() {
+    appendOutput("\n[!] TARGET LOCK ACQUIRED.");
+    appendOutput("[+] EXTRACTING COMPLETE HOST IDENTITY & ENVIRONMENT...\n");
+
+    const screenRes = `${window.screen.width}x${window.screen.height}`;
+    const userAgent = navigator.userAgent;
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const cores = navigator.hardwareConcurrency || "UNKNOWN";
+    const lang = navigator.language || "en-US";
+
+    try {
+        const response = await fetch("https://ipapi.co/json/");
+        if (!response.ok) throw new Error("API Limit");
+        const data = await response.json();
+
+        appendOutput("=================== TARGET IDENTIFIED ===================");
+        appendOutput(` PUBLIC IP   : ${data.ip || "UNKNOWN"}`);
+        appendOutput(` CITY        : ${data.city || "UNKNOWN"}`);
+        appendOutput(` REGION      : ${data.region || "UNKNOWN"}`);
+        appendOutput(` COUNTRY     : ${data.country_name || "UNKNOWN"}`);
+        appendOutput(` ISP         : ${data.org || "UNKNOWN"}`);
+        appendOutput(` LAT / LONG  : ${data.latitude}, ${data.longitude}`);
+        appendOutput(` TIMEZONE    : ${timeZone}`);
+        appendOutput(` LANGUAGE    : ${lang}`);
+        appendOutput(` SCREEN RES  : ${screenRes}`);
+        appendOutput(` CPU CORES   : ${cores}`);
+        appendOutput(` USER AGENT  : ${userAgent}`);
+        appendOutput("========================================================\n");
+    } catch (err) {
+        try {
+            const simpleRes = await fetch("https://api.ipify.org?format=json");
+            const simpleData = await simpleRes.json();
+            appendOutput("=================== TARGET IDENTIFIED ===================");
+            appendOutput(` PUBLIC IP   : ${simpleData.ip}`);
+            appendOutput(` TIMEZONE    : ${timeZone}`);
+            appendOutput(` LANGUAGE    : ${lang}`);
+            appendOutput(` SCREEN RES  : ${screenRes}`);
+            appendOutput(` CPU CORES   : ${cores}`);
+            appendOutput(` USER AGENT  : ${userAgent}`);
+            appendOutput("========================================================\n");
+        } catch (e) {
+            appendOutput("[!] TARGET DISGUISED (VPN/Proxy Detected or Offline)\n");
+        }
+    }
+
+    inputField.style.display = 'inline-block';
+    inputField.focus();
+}
+
+// ==========================================
+// 14. KEYBOARD SHORTCUTS & TAB COMPLETION
 // ==========================================
 window.addEventListener('keydown', function(e) {
     audio.keyClick();
 
-    // Cancel Active Stream with CTRL+C
+    // CTRL + C: Cancel active background streams
     if (e.ctrlKey && e.key.toLowerCase() === 'c') {
-        if (activeInterval) {
-            clearInterval(activeInterval);
-            activeInterval = null;
-            appendOutput("\n[^C] PROCESS TERMINATED BY USER.");
+        if (isHacking) {
+            clearInterval(hackInterval);
+            isHacking = false;
+            appendOutput("\n[^C] OVERRIDE SEQUENCE TERMINATED BY USER.");
             inputField.style.display = 'inline-block';
             inputField.focus();
+        } else if (activeInterval) {
+            stopActiveStream();
         }
     }
 
-    // Clear Screen with CTRL+L
+    // CTRL + L: Clear output
     if (e.ctrlKey && e.key.toLowerCase() === 'l') {
         e.preventDefault();
         outputDiv.textContent = '';
     }
 
-    // Clear Line with CTRL+U
+    // CTRL + U: Clear input line
     if (e.ctrlKey && e.key.toLowerCase() === 'u') {
         e.preventDefault();
         inputField.value = '';
     }
 
-    // TAB AUTOCOMPLETION
+    // TAB Key Autocompletion
     if (e.key === 'Tab' && document.activeElement === inputField) {
         e.preventDefault();
         const inputVal = inputField.value;
@@ -404,7 +683,7 @@ window.addEventListener('keydown', function(e) {
         }
     }
 
-    // Command History Navigation
+    // Command History Navigation (Up/Down Arrows)
     if (document.activeElement === inputField) {
         if (e.key === 'ArrowUp') {
             if (commandHistory.length > 0 && historyIndex < commandHistory.length - 1) {
@@ -426,7 +705,7 @@ window.addEventListener('keydown', function(e) {
 });
 
 // ==========================================
-// MAIN TERMINAL ENGINE
+// 15. MAIN TERMINAL INPUT ENGINE
 // ==========================================
 inputField.addEventListener('keydown', async function(e) {
     if (e.key === 'Enter') {
@@ -440,7 +719,7 @@ inputField.addEventListener('keydown', async function(e) {
         if (isEditing) {
             if (rawInput.toLowerCase() === ':q') {
                 isEditing = false;
-                appendOutput(`\n[NANO] Closed editor without saving.`);
+                appendOutput(`\n[NANO] Closed editor without saving '${currentEditingFile}'.`);
                 currentEditingFile = null;
                 return;
             }
@@ -456,7 +735,8 @@ inputField.addEventListener('keydown', async function(e) {
             return;
         }
 
-        appendOutput(`${promptSpan.textContent} ${rawInput}`);
+        const currentPrompt = promptSpan.textContent;
+        appendOutput(`${currentPrompt} ${rawInput}`);
 
         if (rawInput) {
             commandHistory.push(rawInput);
@@ -472,124 +752,210 @@ inputField.addEventListener('keydown', async function(e) {
         const fullCmdLower = rawInput.toLowerCase();
         const cmd = parts[0].toLowerCase();
 
+        // Guard for uninitialized kernel
         if (!isInstalled) {
             if (fullCmdLower === 'sspec install') {
                 appendOutput("\n[!] INITIALIZING SSPEC SYSTEM INSTALLER...");
-                appendOutput("Do you want to proceed with SSPEC Kernel installation? [Y/n]");
+                appendOutput("[+] Checking target architecture: x86_64... OK");
+                appendOutput("[+] Verifying sandbox permissions... OK");
+                appendOutput("\nDo you want to proceed with SSPEC Kernel installation? [Y/n]");
                 installStep = 1;
+                return;
             } else {
                 appendOutput(`bash: ${cmd}: command not found.`);
                 appendOutput(`[CRITICAL ERROR] Kernel uninitialized. Run 'sspec install' to configure system.\n`);
+                return;
+            }
+        }
+
+        // --- DEV TOOLS CONSOLE & SUDO RM/F STREAMS ---
+        if (fullCmdLower === 'sudo rm/f' || fullCmdLower === 'sudo rm -rf /' || fullCmdLower === 'sudo rm -rf') {
+            startSudoRmStream();
+            return;
+        }
+
+        if (fullCmdLower === 'sudo rm/f stop' || fullCmdLower === 'pip install stop') {
+            stopActiveStream();
+            return;
+        }
+
+        if (fullCmdLower === 'pip install start') {
+            startPipHackerStream();
+            return;
+        }
+
+        // --- BANNER COMMAND ---
+        if (fullCmdLower === 'banner' || fullCmdLower === 'sspec banner') {
+            appendOutput(SSPEC_FULL_BANNER);
+            return;
+        }
+
+        // --- ROOT ESCALATION ---
+        if (fullCmdLower === 'sspec admin run') {
+            isAdmin = true;
+            promptSpan.style.color = '#ff0055';
+            inputField.style.color = '#ff0055';
+            inputField.style.caretColor = '#ff0055';
+            updatePrompt();
+            audio.alert();
+
+            appendOutput("\n[*** SECRET ACCESS GRANTED ***]");
+            appendOutput(SSPEC_ART);
+            appendOutput("SYSTEM SPECTRA ADMIN KERNEL UNLOCKED.");
+            appendOutput("Type 'admin help' or 'help' to list elevated commands.\n");
+            return;
+        }
+
+        // --- ADMIN HELP DIRECTORY ---
+        if (fullCmdLower === 'admin help') {
+            if (!isAdmin) {
+                audio.error();
+                appendOutput("bash: admin help: Permission denied. Run 'sspec admin run' first to elevate to root.\n");
+                return;
+            }
+            appendOutput("================ SSPEC ROOT COMMANDS ================");
+            appendOutput("  admin help         - Display this administrator help menu");
+            appendOutput("  sudo rm/f          - Print live website DevTools console & telemetry stream");
+            appendOutput("  pip install start  - Stream infinite Python security package downloads");
+            appendOutput("  pip install stop   - Stop active streaming process");
+            appendOutput("  banner             - Re-render complete system banner");
+            appendOutput("  install terminal   - Launch live desktop sub-terminal overlay");
+            appendOutput("  matrix [args]      - Controls: matrix true/false, red/blue/green, fast/slow");
+            appendOutput("  sspec hack true    - Run override diagnostic dump & IP lookup");
+            appendOutput("  system status      - View live hardware, RAM & system metrics");
+            appendOutput("  wireshark          - Capture live network traffic packets");
+            appendOutput("  hydra <target>     - SSH brute-force attack simulator");
+            appendOutput("  hashcat <hash>     - GPU hash cracker engine simulator");
+            appendOutput("  top / htop         - Live process monitor");
+            appendOutput("  ping <host>        - Network latency test");
+            appendOutput("  portscan local     - Execute loopback port audit");
+            appendOutput("  traceroute <host>  - Trace routing path to host");
+            appendOutput("  theme <color>      - UI Themes: green, cyber, red");
+            appendOutput("  sound <on/off>     - Toggle audio synthesizer");
+            appendOutput("  crt <on/off>       - Toggle retro CRT scanline effect");
+            appendOutput("  exit               - Drop root privileges back to guest");
+            appendOutput("=====================================================\n");
+            return;
+        }
+
+        // --- DIAGNOSTIC OVERRIDE DUMP (sspec hack true) ---
+        if (fullCmdLower === 'sspec hack true') {
+            if (!isAdmin) {
+                audio.error();
+                appendOutput("bash: sspec: Permission denied. Admin required.\n");
+                return;
+            }
+
+            appendOutput("\n[!] INITIALIZING OVERRIDE PROTOCOL...");
+            appendOutput("[!] PRESS 'CTRL + C' TO CANCEL.\n");
+            
+            isHacking = true;
+            inputField.style.display = 'none';
+
+            let lineCount = 0;
+            const maxLines = 30;
+
+            hackInterval = setInterval(async () => {
+                appendOutput(generatePipHackerLog());
+                lineCount++;
+
+                if (lineCount >= maxLines) {
+                    clearInterval(hackInterval);
+                    isHacking = false;
+                    await revealTargetFullData();
+                }
+            }, 60);
+            return;
+        }
+
+        // --- MATRIX RAIN CONTROLS ---
+        if (cmd === 'matrix') {
+            if (!isAdmin) {
+                audio.error();
+                appendOutput("bash: matrix: Permission denied. Admin required.\n");
+                return;
+            }
+            const arg = parts[1] ? parts[1].toLowerCase() : '';
+
+            if (arg === 'true' || arg === 'start') {
+                startMatrix();
+                appendOutput("[+] Matrix rain background activated.\n");
+            } else if (arg === 'false' || arg === 'stop') {
+                stopMatrix();
+                appendOutput("[-] Matrix rain background deactivated.\n");
+            } else if (arg === 'red') {
+                matrixColor = '#ff0055';
+                startMatrix();
+                appendOutput("[+] Matrix color updated to RED.\n");
+            } else if (arg === 'blue') {
+                matrixColor = '#00ccff';
+                startMatrix();
+                appendOutput("[+] Matrix color updated to BLUE.\n");
+            } else if (arg === 'green') {
+                matrixColor = '#00ff00';
+                startMatrix();
+                appendOutput("[+] Matrix color updated to GREEN.\n");
+            } else if (arg === 'fast') {
+                matrixSpeed = 15;
+                startMatrix();
+                appendOutput("[+] Matrix speed set to FAST.\n");
+            } else if (arg === 'slow') {
+                matrixSpeed = 60;
+                startMatrix();
+                appendOutput("[+] Matrix speed set to SLOW.\n");
+            } else {
+                appendOutput("Usage: matrix <true|false|red|blue|green|fast|slow>\n");
             }
             return;
         }
 
-        // --- COMMAND ROUTER ---
-        switch (fullCmdLower) {
-            case 'pip install start':
-                startPipHackerStream();
+        // --- SUB-TERMINAL OVERLAY CONTROL ---
+        if (fullCmdLower === 'install terminal' || fullCmdLower === 'open terminal') {
+            if (!isAdmin) {
+                audio.error();
+                appendOutput("bash: install terminal: Permission denied. Admin required.\n");
                 return;
-            case 'pip install stop':
-                stopPipHackerStream();
-                return;
-            case 'banner':
-            case 'sspec banner':
-                appendOutput(SSPEC_FULL_BANNER);
-                return;
-            case 'sspec admin run':
-                isAdmin = true;
-                promptSpan.style.color = '#ff0055';
-                inputField.style.color = '#ff0055';
-                inputField.style.caretColor = '#ff0055';
-                updatePrompt();
-                audio.alert();
-                appendOutput("\n[*** ROOT ESCALATION GRANTED ***]");
-                appendOutput("SYSTEM SPECTRA ADMIN KERNEL UNLOCKED.\n");
-                return;
-            case 'system status':
-                appendOutput("\n--- SSPEC SYSTEM METRICS ---");
-                appendOutput(`CPU Usage    : ${Math.floor(Math.random() * 25 + 5)}% [8 Cores]`);
-                appendOutput(`RAM Usage    : ${Math.floor(Math.random() * 1024 + 2048)}MB / 8192MB`);
-                appendOutput(`Kernel       : Linux sspec-node 5.15.0-x86_64`);
-                appendOutput(`Uptime       : 14 days, 03 hours, 22 mins\n`);
-                return;
-            case 'pwd':
-                appendOutput(currentPath);
-                return;
-            case 'sound on':
-                audio.enabled = true;
-                appendOutput("[+] Terminal audio feedback ENABLED.");
-                return;
-            case 'sound off':
-                audio.enabled = false;
-                appendOutput("[-] Terminal audio feedback DISABLED.");
-                return;
-            case 'crt on':
-                document.body.classList.add('crt-effect');
-                appendOutput("[+] Retro CRT scanline effect ACTIVATED.");
-                return;
-            case 'crt off':
-                document.body.classList.remove('crt-effect');
-                appendOutput("[-] Retro CRT scanline effect DEACTIVATED.");
-                return;
+            }
+            appendOutput("[+] Mounting root desktop window terminal overlay...\n");
+            openWinTerminal();
+            return;
         }
 
-        // PARAMETER-BASED COMMANDS
-        if (cmd === 'cd') {
-            let target = resolvePath(parts[1]);
-            if (fileSystem[target] && fileSystem[target].type === 'dir') {
-                if (fileSystem[target].restricted && !isAdmin) {
-                    audio.error();
-                    appendOutput(`cd: permission denied: ${parts[1]}`);
-                } else {
-                    currentPath = target;
-                    updatePrompt();
-                }
-            } else {
-                audio.error();
-                appendOutput(`cd: no such file or directory: ${parts[1] || ''}`);
-            }
-        } 
-        else if (cmd === 'ls') {
-            let entries = Object.keys(fileSystem).filter(p => {
-                if (p === '/') return false;
-                let parent = p.substring(0, p.lastIndexOf('/')) || '/';
-                return parent === currentPath;
-            }).map(p => p.substring(p.lastIndexOf('/') + 1));
+        // --- SYSTEM METRICS DIAGNOSTIC ---
+        if (fullCmdLower === 'system status') {
+            appendOutput("\n--- SSPEC SYSTEM METRICS ---");
+            appendOutput(`CPU Usage    : ${Math.floor(Math.random() * 25 + 5)}% [8 Cores]`);
+            appendOutput(`RAM Usage    : ${Math.floor(Math.random() * 1024 + 2048)}MB / 8192MB`);
+            appendOutput(`Kernel       : Linux sspec-node 5.15.0-x86_64`);
+            appendOutput(`Uptime       : 14 days, 03 hours, 22 mins`);
+            appendOutput(`Active Sockets: ${Math.floor(Math.random() * 12 + 4)} ESTABLISHED\n`);
+            return;
+        }
 
-            appendOutput(entries.length ? entries.join("  ") : "[Empty Directory]");
+        // --- AUDIO SYNTHESIZER TOGGLE ---
+        if (fullCmdLower === 'sound on') {
+            audio.enabled = true;
+            appendOutput("[+] Terminal audio feedback ENABLED.\n");
+            return;
+        } else if (fullCmdLower === 'sound off') {
+            audio.enabled = false;
+            appendOutput("[-] Terminal audio feedback DISABLED.\n");
+            return;
         }
-        else if (cmd === 'cat') {
-            let target = resolvePath(parts[1]);
-            if (fileSystem[target] && fileSystem[target].type === 'file') {
-                appendOutput(fileSystem[target].content);
-            } else {
-                audio.error();
-                appendOutput(`cat: ${parts[1] || ''}: No such file`);
-            }
+
+        // --- CRT SCANLINE TOGGLE ---
+        if (fullCmdLower === 'crt on') {
+            document.body.classList.add('crt-effect');
+            appendOutput("[+] Retro CRT scanline overlay ACTIVATED.\n");
+            return;
+        } else if (fullCmdLower === 'crt off') {
+            document.body.classList.remove('crt-effect');
+            appendOutput("[-] Retro CRT scanline overlay DEACTIVATED.\n");
+            return;
         }
-        else if (cmd === 'touch') {
-            if (!parts[1]) return appendOutput("touch: missing file operand");
-            let target = resolvePath(parts[1]);
-            fileSystem[target] = { type: "file", content: "" };
-            appendOutput(`Created file: ${parts[1]}`);
-        }
-        else if (cmd === 'mkdir') {
-            if (!parts[1]) return appendOutput("mkdir: missing directory operand");
-            let target = resolvePath(parts[1]);
-            fileSystem[target] = { type: "dir" };
-            appendOutput(`Created directory: ${parts[1]}`);
-        }
-        else if (cmd === 'rm') {
-            let target = resolvePath(parts[1]);
-            if (fileSystem[target]) {
-                delete fileSystem[target];
-                appendOutput(`Removed: ${parts[1]}`);
-            } else {
-                appendOutput(`rm: cannot remove '${parts[1] || ''}': No such file`);
-            }
-        }
-        else if (cmd === 'wireshark' || cmd === 'tcpdump') {
+
+        // --- SECURITY TOOLS ---
+        if (cmd === 'wireshark' || cmd === 'tcpdump') {
             appendOutput("[+] CAPTURING LIVE PACKETS ON INTERFACE eth0 (PRESS CTRL+C TO CANCEL)...");
             activeInterval = setInterval(() => {
                 const protocols = ['TCP', 'UDP', 'TLSv1.3', 'HTTP/2', 'DNS'];
@@ -599,8 +965,10 @@ inputField.addEventListener('keydown', async function(e) {
                 appendOutput(`[${formatTimestamp()}] ${proto} ${src}:${Math.floor(Math.random()*8000+1000)} -> ${dst}:443 [LEN=${Math.floor(Math.random()*1200+64)}]`);
                 audio.streamTick();
             }, 120);
+            return;
         }
-        else if (cmd === 'hydra') {
+
+        if (cmd === 'hydra') {
             const target = parts[1] || "192.168.1.1";
             appendOutput(`[+] Starting Hydra v9.2 SSH Brute-Force against ${target}:22...`);
             let count = 0;
@@ -612,11 +980,13 @@ inputField.addEventListener('keydown', async function(e) {
                     clearInterval(activeInterval);
                     activeInterval = null;
                     audio.alert();
-                    appendOutput(`\n[SUCCESS] PASSWORD DISCOVERED: root:P@ssw0rd2026!`);
+                    appendOutput(`\n[SUCCESS] PASSWORD DISCOVERED: root:P@ssw0rd2026!\n`);
                 }
             }, 100);
+            return;
         }
-        else if (cmd === 'hashcat') {
+
+        if (cmd === 'hashcat') {
             appendOutput("[+] Initializing Hashcat v6.2.5 CUDA Hash Cracker...");
             appendOutput("Speed: 14,250.4 MH/s | Temp: 72°C | GPU Utilization: 99%");
             let progress = 0;
@@ -626,11 +996,14 @@ inputField.addEventListener('keydown', async function(e) {
                 if (progress >= 100) {
                     clearInterval(activeInterval);
                     activeInterval = null;
-                    appendOutput("\n[+] Hash Cracked: $6$rounds=5000$root -> admin123");
+                    audio.alert();
+                    appendOutput("\n[+] Hash Cracked: $6$rounds=5000$root -> admin123\n");
                 }
             }, 150);
+            return;
         }
-        else if (cmd === 'top' || cmd === 'htop') {
+
+        if (cmd === 'top' || cmd === 'htop') {
             appendOutput("[+] LIVE SYSTEM PROCESS MONITOR (PRESS CTRL+C TO CANCEL)");
             activeInterval = setInterval(() => {
                 outputDiv.textContent = '';
@@ -643,8 +1016,10 @@ inputField.addEventListener('keydown', async function(e) {
                 appendOutput(` 1088 guest     20   0  120400  12400   4100 S   2.1   0.2   0:02.11 node-server`);
                 appendOutput(` 2041 guest     20   0  412400  42400  11200 R   1.2   0.5   0:00.89 htop-engine`);
             }, 500);
+            return;
         }
-        else if (cmd === 'ping') {
+
+        if (cmd === 'ping') {
             const host = parts[1] || "8.8.8.8";
             appendOutput(`PING ${host} (${host}) 56(84) bytes of data.`);
             activeInterval = setInterval(() => {
@@ -652,58 +1027,310 @@ inputField.addEventListener('keydown', async function(e) {
                 appendOutput(`64 bytes from ${host}: icmp_seq=1 ttl=118 time=${ms} ms`);
                 audio.streamTick();
             }, 800);
+            return;
         }
-        else if (cmd === 'nano') {
-            if (!parts[1]) return appendOutput("nano: missing file argument");
+
+        // --- FILESYSTEM COMMANDS ---
+        if (cmd === 'pwd') {
+            appendOutput(currentPath + "\n");
+            return;
+        }
+
+        if (cmd === 'cd') {
+            let target = resolvePath(parts[1]);
+            if (fileSystem[target] && fileSystem[target].type === 'dir') {
+                if (fileSystem[target].restricted && !isAdmin) {
+                    audio.error();
+                    appendOutput(`cd: permission denied: ${parts[1]}\n`);
+                } else {
+                    currentPath = target;
+                    updatePrompt();
+                }
+            } else {
+                audio.error();
+                appendOutput(`cd: no such file or directory: ${parts[1] || ''}\n`);
+            }
+            return;
+        }
+
+        if (cmd === 'ls') {
+            let entries = Object.keys(fileSystem).filter(p => {
+                if (p === '/') return false;
+                let parent = p.substring(0, p.lastIndexOf('/')) || '/';
+                return parent === currentPath;
+            }).map(p => p.substring(p.lastIndexOf('/') + 1));
+
+            appendOutput(entries.length ? entries.join("  ") + "\n" : "[Empty Directory]\n");
+            return;
+        }
+
+        if (cmd === 'cat') {
+            let target = resolvePath(parts[1]);
+            if (fileSystem[target] && fileSystem[target].type === 'file') {
+                appendOutput(fileSystem[target].content + "\n");
+            } else {
+                audio.error();
+                appendOutput(`cat: ${parts[1] || ''}: No such file\n`);
+            }
+            return;
+        }
+
+        if (cmd === 'touch') {
+            if (!parts[1]) {
+                appendOutput("touch: missing file operand\n");
+                return;
+            }
+            let target = resolvePath(parts[1]);
+            fileSystem[target] = { type: "file", content: "" };
+            appendOutput(`Created file: ${parts[1]}\n`);
+            return;
+        }
+
+        if (cmd === 'mkdir') {
+            if (!parts[1]) {
+                appendOutput("mkdir: missing directory operand\n");
+                return;
+            }
+            let target = resolvePath(parts[1]);
+            fileSystem[target] = { type: "dir" };
+            appendOutput(`Created directory: ${parts[1]}\n`);
+            return;
+        }
+
+        if (cmd === 'rm') {
+            let target = resolvePath(parts[1]);
+            if (fileSystem[target]) {
+                delete fileSystem[target];
+                appendOutput(`Removed file/directory: ${parts[1]}\n`);
+            } else {
+                appendOutput(`rm: cannot remove '${parts[1] || ''}': No such file or directory\n`);
+            }
+            return;
+        }
+
+        if (cmd === 'echo') {
+            if (rawInput.includes('>')) {
+                const echoParts = rawInput.substring(5).split('>');
+                const text = echoParts[0].trim().replace(/^["']|["']$/g, '');
+                const fileName = echoParts[1].trim();
+
+                let target = resolvePath(fileName);
+                fileSystem[target] = { type: "file", content: text };
+                appendOutput(`Wrote content to ${fileName}\n`);
+            } else {
+                appendOutput(rawInput.substring(5) + "\n");
+            }
+            return;
+        }
+
+        // --- INTERACTIVE NANO TEXT EDITOR ---
+        if (cmd === 'nano') {
+            if (!parts[1]) {
+                appendOutput("nano: missing file argument\n");
+                return;
+            }
             currentEditingFile = resolvePath(parts[1]);
             isEditing = true;
             editingContent = fileSystem[currentEditingFile]?.content || "";
+
             appendOutput(`\n--- NANO EDITOR: ${parts[1]} ---`);
             appendOutput("Type text line by line. Commands: ':w' to save, ':q' to exit\n");
-            if (editingContent) appendOutput("Current Content:\n" + editingContent);
-        }
-        else if (cmd === 'calc') {
-            try {
-                const expr = parts.slice(1).join("");
-                appendOutput(`Result: ${Function(`'use strict'; return (${expr})`)()}`);
-            } catch (err) {
-                appendOutput("calc: invalid math expression");
+            if (editingContent) {
+                appendOutput("Current Content:");
+                appendOutput(editingContent);
             }
+            return;
         }
-        else if (cmd === 'help') {
-            appendOutput("SSPEC Terminal Commands:");
-            appendOutput("  pip install start / stop - Infinite hacker stream");
-            appendOutput("  ls, cd <dir>, pwd        - File navigation");
-            appendOutput("  cat, touch, mkdir, rm    - File management");
-            appendOutput("  nano <file>              - Text editor");
-            appendOutput("  wireshark / hydra        - Security diagnostics");
-            appendOutput("  hashcat / htop / ping    - System monitoring");
-            appendOutput("  sound on / off           - Audio synthesizer toggle");
-            appendOutput("  crt on / off             - CRT visual effect toggle");
-            appendOutput("  clear / whoami / exit    - Shell controls");
+
+        // --- NETWORK & PORTSCAN DIAGNOSTICS ---
+        if (fullCmdLower === 'portscan local') {
+            appendOutput("[+] Scanning localhost loopback (127.0.0.1)...");
+            appendOutput("PORT     STATE  SERVICE");
+            appendOutput("22/tcp   OPEN   ssh");
+            appendOutput("80/tcp   OPEN   http (nginx/1.18)");
+            appendOutput("443/tcp  OPEN   https (tls-v1.3)");
+            appendOutput("3306/tcp OPEN   mysql-db");
+            if (isAdmin) appendOutput("9999/tcp OPEN   sspec-backdoor-daemon");
+            appendOutput("");
+            return;
         }
-        else if (cmd === 'clear') {
+
+        if (cmd === 'traceroute') {
+            const host = parts[1] || "sspec.vercel.app";
+            appendOutput(`traceroute to ${host}, 30 hops max, 60 byte packets`);
+            
+            const hops = [
+                `1  _gateway (192.168.1.1)  0.421 ms`,
+                `2  10.240.0.1 (10.240.0.1)  4.120 ms`,
+                `3  core1.fra1.hetzner.com  12.331 ms`,
+                `4  vercel-peering.fra1.net  14.882 ms`,
+                `5  ${host}  18.102 ms`
+            ];
+
+            for (const hop of hops) {
+                await sleep(250);
+                appendOutput(` ${hop}`);
+            }
+            appendOutput("");
+            return;
+        }
+
+        // --- UI THEME SWITCHER ---
+        if (cmd === 'theme') {
+            const themeColor = parts[1] ? parts[1].toLowerCase() : '';
+            if (themeColor === 'cyber') {
+                document.body.style.backgroundColor = '#0a0a1a';
+                promptSpan.style.color = '#00f3ff';
+                inputField.style.color = '#00f3ff';
+                appendOutput("[+] Theme updated to CYBER BLUE.\n");
+            } else if (themeColor === 'red') {
+                document.body.style.backgroundColor = '#100000';
+                promptSpan.style.color = '#ff0055';
+                inputField.style.color = '#ff0055';
+                appendOutput("[+] Theme updated to RED CRITICAL.\n");
+            } else if (themeColor === 'matrix' || themeColor === 'green') {
+                document.body.style.backgroundColor = '#000000';
+                promptSpan.style.color = '#00ff00';
+                inputField.style.color = '#00ff00';
+                appendOutput("[+] Theme updated to MATRIX GREEN.\n");
+            } else {
+                appendOutput("Usage: theme <green|cyber|red>\n");
+            }
+            return;
+        }
+
+        // --- MATH CALCULATOR ---
+        if (cmd === 'calc') {
+            const expr = parts.slice(1).join("");
+            if (!expr) {
+                appendOutput("calc: missing expression (e.g., calc 25*4+10)\n");
+                return;
+            }
+            try {
+                const result = Function(`'use strict'; return (${expr})`)();
+                appendOutput(`Result: ${result}\n`);
+            } catch (err) {
+                appendOutput(`calc: invalid mathematical expression '${expr}'\n`);
+            }
+            return;
+        }
+
+        // --- MISC UTILITIES ---
+        if (cmd === 'history') {
+            appendOutput("--- COMMAND HISTORY ---");
+            commandHistory.forEach((item, index) => {
+                appendOutput(` ${index + 1}  ${item}`);
+            });
+            appendOutput("");
+            return;
+        }
+
+        if (cmd === 'uptime') {
+            appendOutput(" 13:49:38 up 14 days,  3:22,  2 users,  load average: 0.15, 0.20, 0.18\n");
+            return;
+        }
+
+        if (cmd === 'date') {
+            appendOutput(`${new Date().toString()}\n`);
+            return;
+        }
+
+        if (cmd === 'whoami') {
+            appendOutput(isAdmin ? "root-admin (uid=0 gid=0)\n" : "guest (uid=1000 gid=1000)\n");
+            return;
+        }
+
+        if (cmd === 'help') {
+            appendOutput("SSPEC Operational Commands:");
+            appendOutput("  sspec admin run    - Elevate to root administrator mode");
+            appendOutput("  admin help         - List root administrator tools");
+            appendOutput("  sudo rm/f          - Stream real browser DevTools console data");
+            appendOutput("  pip install start  - Infinite hacker stream");
+            appendOutput("  pip install stop   - Stop active streaming stream");
+            appendOutput("  ls, cd, pwd        - Navigation tools");
+            appendOutput("  cat, touch, mkdir  - File manipulation");
+            appendOutput("  rm, echo, nano     - File management & interactive editing");
+            appendOutput("  wireshark / hydra  - Security diagnostics");
+            appendOutput("  hashcat / htop     - GPU cracker & process monitor");
+            appendOutput("  ping / traceroute  - Network latency & routing tests");
+            appendOutput("  sound on / off     - Toggle audio synthesizer");
+            appendOutput("  crt on / off       - Toggle CRT visual scanlines");
+            appendOutput("  calc / history     - Calculator & command history");
+            appendOutput("  clear / exit       - Terminal controls\n");
+            return;
+        }
+
+        if (cmd === 'clear') {
             outputDiv.textContent = '';
+            return;
         }
-        else if (cmd === 'whoami') {
-            appendOutput(isAdmin ? "root-admin (uid=0 gid=0)" : "guest (uid=1000 gid=1000)");
-        }
-        else if (cmd === 'exit') {
+
+        if (cmd === 'exit') {
             if (isAdmin) {
                 isAdmin = false;
                 promptSpan.style.color = '#00ff00';
                 inputField.style.color = '#00ff00';
                 inputField.style.caretColor = '#00ff00';
                 updatePrompt();
-                appendOutput("Downgraded to guest privileges.");
+                appendOutput("Downgraded to guest privileges.\n");
             } else {
-                appendOutput("Session terminated.");
+                appendOutput("Session closed.");
                 inputField.disabled = true;
             }
+            return;
         }
-        else {
-            audio.error();
-            appendOutput(`bash: ${cmd}: command not found`);
-        }
+
+        audio.error();
+        appendOutput(`bash: ${cmd}: command not found\n`);
     }
 });
+
+// ==========================================
+// 16. FLOATING SUB-TERMINAL CONTROLLER
+// ==========================================
+if (winInput) {
+    winInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            const rawInput = winInput.value.trim();
+            winInput.value = '';
+
+            if (!rawInput) return;
+
+            appendWinOutput(`root@sspec-window:~# ${rawInput}`);
+            const parts = rawInput.split(/\s+/);
+            const cmd = parts[0].toLowerCase();
+
+            if (cmd === 'help' || cmd === 'admin help') {
+                appendWinOutput("Sub-terminal controls:");
+                appendWinOutput("  logs start         - Resume website log stream");
+                appendWinOutput("  logs stop          - Pause website log stream");
+                appendWinOutput("  logs <status_code> - Filter logs by HTTP code (e.g. logs 401)");
+                appendWinOutput("  clear              - Clear window output");
+                appendWinOutput("  whoami             - Display privilege level");
+                appendWinOutput("  exit               - Close floating window\n");
+            } else if (cmd === 'logs') {
+                const subArg = parts[1] ? parts[1].toLowerCase() : '';
+                if (subArg === 'start') {
+                    startWebLogs();
+                    appendWinOutput("[+] Web log stream resumed.\n");
+                } else if (subArg === 'stop') {
+                    stopWebLogs();
+                    appendWinOutput("[-] Web log stream paused.\n");
+                } else if (!isNaN(parseInt(subArg))) {
+                    startWebLogs(subArg);
+                    appendWinOutput(`[+] Filtering web log stream for status ${subArg}...\n`);
+                } else {
+                    appendWinOutput("Usage: logs <start|stop|status_code>\n");
+                }
+            } else if (cmd === 'clear') {
+                winOutput.textContent = '';
+            } else if (cmd === 'whoami') {
+                appendWinOutput("root (uid=0 gid=0)\n");
+            } else if (cmd === 'exit') {
+                closeWinTerminal();
+            } else {
+                appendWinOutput(`sh: ${cmd}: command not found\n`);
+            }
+        }
+    });
+}
